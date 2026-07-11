@@ -3,8 +3,8 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Стартираме от 500 004 подписи (500 хил. + вашите 4 реални гласа)
-let signatureCount = 500004; 
+// Започваме точно от вашите 4 реални гласа
+let signatureCount = 4; 
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
