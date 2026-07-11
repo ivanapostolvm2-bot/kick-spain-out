@@ -3,45 +3,38 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Списък с гласувалите хора (започваме с 4 за тест)
-let voters = [
-    { name: "Ivan", reason: "Rigged tournament" },
-    { name: "Alex", reason: "Bribed refs" },
-    { name: "John", reason: "Unfair games" },
-    { name: "Elena", reason: "Bad decisions" }
-];
+// Започваме от вашите 4 реални гласа
+let signatureCount = 4; 
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // Връща броя на гласовете
 app.get('/api/signatures', (req, res) => {
-    res.json({ count: voters.length });
+    res.json({ count: signatureCount });
 });
 
-// Добавяне на глас (само с бутона Vote)
+// Добавяне на глас при натискане на Vote
 app.post('/api/sign', (req, res) => {
-    voters.push({ name: "Anonymous", reason: "Direct Vote" });
-    res.json({ success: true, count: voters.length });
+    signatureCount += 1;
+    res.json({ success: true, count: signatureCount });
 });
 
-// Премахване на глас по име и причина
+// Премахване на глас (Приема абсолютно ВСЯКАКВО име без проверка)
 app.post('/api/remove', (req, res) => {
     const { name, reason } = req.body;
     
+    // Проверява само дали полетата не са празни
     if (!name || !reason) {
         return res.json({ success: false, message: "Please fill all fields!" });
     }
 
-    // Търси дали има такъв човек в списъка
-    const index = voters.findIndex(v => v.name.toLowerCase() === name.toLowerCase());
-
-    if (index !== -1) {
-        voters.splice(index, 1); // Маха го от списъка
-        res.json({ success: true, count: voters.length });
-    } else {
-        res.json({ success: false, message: "Name not found in the voting list!" });
+    // Намалява брояча с 1 (само ако има останали гласове, за да не падне под нулата)
+    if (signatureCount > 0) {
+        signatureCount -= 1;
     }
+
+    res.json({ success: true, count: signatureCount });
 });
 
 app.listen(PORT, () => {
