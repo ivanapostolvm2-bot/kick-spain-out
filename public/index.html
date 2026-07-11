@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="bg">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,12 @@
         h1 { color: #ff0000; font-size: 3rem; margin-bottom: 10px; }
         p { font-size: 1.2rem; max-width: 600px; margin: 20px auto; color: #cccccc; }
         .counter { font-size: 4rem; font-weight: bold; color: #ff0000; margin: 30px 0 10px 0; }
-        .goal { color: #888888; font-size: 1rem; margin-bottom: 30px; }
+        .goal { color: #888888; font-size: 1rem; margin-bottom: 20px; }
+        
+        /* Стилизиране на прогрес лентата */
+        .progress-container { width: 100%; max-width: 500px; background-color: #222; border-radius: 20px; margin: 0 auto 30px auto; padding: 3px; border: 1px solid #444; }
+        .progress-bar { width: 0%; height: 20px; background-color: #ff0000; border-radius: 20px; text-align: right; padding-right: 10px; line-height: 20px; font-size: 0.85rem; font-weight: bold; color: white; transition: width 0.5s ease-in-out; }
+        
         button { background-color: #ff0000; color: white; border: none; padding: 15px 40px; font-size: 1.5rem; font-weight: bold; cursor: pointer; border-radius: 5px; transition: 0.2s; }
         button:hover { background-color: #cc0000; }
         button:disabled { background-color: #555555; cursor: not-allowed; }
@@ -17,21 +22,63 @@
 </head>
 <body>
     <h1>Kick Spain Out</h1>
-    <p>Очевидно е, че съдиите подкрепят Испания. Защо останалата част от света да се състезава, когато победителят вече е ясен? Изхвърлете Испания и дайте на всички останали честен шанс!</p>
+    <p>It is obvious that the referees favor Spain. Why should the rest of the world compete when the winner is already decided? Kick Spain out and give everyone else a fair chance!</p>
+    
     <div class="counter" id="countLabel">0</div>
-    <div class="goal">цел: 1,000,000 подписи</div>
-    <button id="signBtn" onclick="signPetition()">Подпиши петицията</button>
+    <div class="goal">goal: 1,000,000 signatures</div>
+    
+    <!-- Прогрес лента и проценти -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+    
+    <button id="signBtn" onclick="signPetition()">Sign the petition</button>
+
     <script>
+        const GOAL = 1000000;
+        const hasSigned = localStorage.getItem('hasSignedPetition');
+
+        function updateUI(count) {
+            // Обновява числото
+            document.getElementById('countLabel').innerText = count.toLocaleString(); 
+            
+            // Изчислява и обновява процентите и лентата
+            let percentage = (count / GOAL) * 100;
+            if (percentage > 100) percentage = 100;
+            
+            // Ако гласовете са много малко, показва 0% без да чупи лентата
+            const bar = document.getElementById('progressBar');
+            bar.style.width = percentage + '%';
+            bar.innerText = percentage.toFixed(4) + '%';
+        }
+
+        // Взема текущия брой от сървъра при зареждане
         fetch('/api/signatures')
             .then(res => res.json())
-            .then(data => { document.getElementById('countLabel').innerText = data.count.toLocaleString(); });
+            .then(data => { 
+                updateUI(data.count);
+                
+                // Заключване при рефреш
+                if (hasSigned) {
+                    const btn = document.getElementById('signBtn');
+                    btn.disabled = true;
+                    btn.innerText = "Thank you for your signature!";
+                }
+            });
+
         function signPetition() {
+            if (localStorage.getItem('hasSignedPetition')) return;
+
             const btn = document.getElementById('signBtn');
             btn.disabled = true;
-            btn.innerText = "Благодарим ви за подписа!";
+            btn.innerText = "Thank you for your signature!";
+
             fetch('/api/sign', { method: 'POST' })
                 .then(res => res.json())
-                .then(data => { document.getElementById('countLabel').innerText = data.count.toLocaleString(); });
+                .then(data => { 
+                    updateUI(data.count);
+                    localStorage.setItem('hasSignedPetition', 'true');
+                });
         }
     </script>
 </body>
