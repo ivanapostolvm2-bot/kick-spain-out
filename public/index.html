@@ -14,12 +14,11 @@
         .progress-container { width: 100%; max-width: 500px; background-color: #222; border-radius: 20px; margin: 0 auto 30px auto; padding: 3px; border: 1px solid #444; }
         .progress-bar { width: 0%; height: 20px; background-color: #ff0000; border-radius: 20px; text-align: right; padding-right: 10px; line-height: 20px; font-size: 0.85rem; font-weight: bold; color: white; transition: width 0.5s ease-in-out; }
         
-        /* Меню бутони */
         .menu { margin-top: 30px; display: flex; justify-content: center; gap: 20px; }
         button { background-color: #ff0000; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer; border-radius: 5px; transition: 0.2s; }
         button:hover { background-color: #cc0000; }
+        button:disabled { background-color: #555555; cursor: not-allowed; }
         
-        /* Скрити секции */
         .section { display: none; margin-top: 30px; background-color: #111; padding: 20px; border-radius: 10px; max-width: 400px; margin-left: auto; margin-right: auto; border: 1px solid #333; }
         input, textarea { width: 90%; padding: 10px; margin: 10px 0; background: #222; border: 1px solid #444; color: white; border-radius: 5px; }
         .msg { color: #ff3333; margin-top: 10px; font-weight: bold; }
@@ -37,25 +36,22 @@
         <div class="progress-bar" id="progressBar">0%</div>
     </div>
     
-    <!-- НАЧАЛНО МЕНЮ -->
     <div class="menu">
         <button id="navVoteBtn" onclick="showSection('voteSection')">Enter and Vote</button>
         <button id="navRemoveBtn" onclick="showSection('removeSection')">Remove your Vote</button>
     </div>
 
-    <!-- СЕКЦИЯ ГЛАСУВАНЕ -->
     <div id="voteSection" class="section">
         <h3 style="color: #ff0000;">Cast your vote</h3>
         <p style="font-size: 1rem;">Click below to add your signature to the petition.</p>
         <button id="signBtn" onclick="signPetition()">Vote</button>
     </div>
 
-    <!-- СЕКЦИЯ ПРЕМАХВАНЕ -->
     <div id="removeSection" class="section">
         <h3 style="color: #ff0000;">Remove your signature</h3>
         <input type="text" id="remName" placeholder="Enter your Name">
         <textarea id="remReason" placeholder="Why do you want to remove it?" rows="3"></textarea>
-        <button onclick="removePetition()">Submit Removal</button>
+        <button id="remSubmitBtn" onclick="removePetition()">Submit Removal</button>
         <div id="removeMsg" class="msg"></div>
     </div>
 
@@ -71,12 +67,10 @@
             bar.innerText = percentage.toFixed(4) + '%';
         }
 
-        // Навигация между менютата
         function showSection(id) {
             document.getElementById('voteSection').style.display = 'none';
             document.getElementById('removeSection').style.display = 'none';
             
-            // Проверка за блокировки
             if (id === 'voteSection' && localStorage.getItem('hasSignedPetition')) {
                 alert("You have already voted!");
                 return;
@@ -89,43 +83,47 @@
             document.getElementById(id).style.display = 'block';
         }
 
-        // Първоначално зареждане
         fetch('/api/signatures')
             .then(res => res.json())
             .then(data => { 
                 updateUI(data.count);
+                // Напълно премахва бутоните, ако вече са ползвани
                 if (localStorage.getItem('hasSignedPetition')) {
-                    document.getElementById('navVoteBtn').style.opacity = '0.5';
+                    document.getElementById('navVoteBtn').style.display = 'none';
                 }
                 if (localStorage.getItem('hasRemovedPetition')) {
-                    document.getElementById('navRemoveBtn').style.opacity = '0.5';
+                    document.getElementById('navRemoveBtn').style.display = 'none';
                 }
             });
 
-        // Функция за Гласуване
         function signPetition() {
             if (localStorage.getItem('hasSignedPetition')) return;
+
+            document.getElementById('signBtn').disabled = true;
 
             fetch('/api/sign', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => { 
                     updateUI(data.count);
                     localStorage.setItem('hasSignedPetition', 'true');
-                    document.getElementById('voteSection').style.display = 'none';
-                    document.getElementById('navVoteBtn').style.opacity = '0.5';
-                    // Разблокира правото да гласува пак, ако преди това е трил
-                    localStorage.removeItem('hasRemovedPetition'); 
-                    document.getElementById('navRemoveBtn').style.opacity = '1';
+                    localStorage.removeItem('hasRemovedPetition'); // Разрешава триене за новия глас
+                    location.reload(); // Рефрешва страницата за чист интерфейс
                 });
         }
 
-        // Функция за Махане на глас
         function removePetition() {
             if (localStorage.getItem('hasRemovedPetition')) return;
 
             const name = document.getElementById('remName').value;
             const reason = document.getElementById('remReason').value;
             const msgDiv = document.getElementById('removeMsg');
+
+            if (!name || !reason) {
+                msgDiv.innerText = "Please fill all fields!";
+                return;
+            }
+
+            document.getElementById('remSubmitBtn').disabled = true;
 
             fetch('/api/remove', {
                 method: 'POST',
@@ -136,14 +134,13 @@
             .then(data => {
                 if (data.success) {
                     updateUI(data.count);
-                    localStorage.setItem('hasRemovedPetition', 'true'); // Блокира бъдещо триене
-                    localStorage.removeItem('hasSignedPetition'); // Отключва бутона за гласуване ПАК
-                    document.getElementById('removeSection').style.display = 'none';
-                    document.getElementById('navRemoveBtn').style.opacity = '0.5';
-                    document.getElementById('navVoteBtn').style.opacity = '1';
+                    localStorage.setItem('hasRemovedPetition', 'true'); // Слага доживотна блокировка на браузъра за триене
+                    localStorage.removeItem('hasSignedPetition'); // Отключва правото на нов глас
                     alert("Your signature has been removed successfully! You can vote again if you want.");
+                    location.reload(); // Презарежда и скрива менюто за триене завинаги
                 } else {
                     msgDiv.innerText = data.message;
+                    document.getElementById('remSubmitBtn').disabled = false;
                 }
             });
         }
